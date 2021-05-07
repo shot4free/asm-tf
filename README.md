@@ -146,12 +146,6 @@ This tutorial uses the following documents:
     export TERRAFORM_CMD="./terraform" # Path of your terraform binary
     ```
 
-1.  Download the sample `main.tf` file.
-
-    ```bash
-    wget https://gitlab.com/-/snippets/2116054/raw/master/main.tf
-    ```
-
 1.  Initialize and apply.
 
     ```bash
