@@ -58,10 +58,11 @@ This tutorial uses the following documents:
     sudo apt-get update && sudo apt-get install -y google-cloud-sdk-kpt netcat
     ```
 
-1.  Create a WORKDIR folder.
+1.  Clone this repo.
 
     ```bash
-    mkdir -p asm-tf && cd asm-tf && export WORKDIR=`pwd`
+    git clone https://gitlab.com/asm7/asm-terraform.git
+    cd asm-terraform && export WORKDIR=`pwd`
     ```
 
 1.  Create a KUBECONFIG file for this tutorial.
