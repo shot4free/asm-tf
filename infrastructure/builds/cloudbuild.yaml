@@ -1,0 +1,55 @@
+timeout: 3600s
+substitutions:
+  _BUILD: "true"
+  _DESTROY: "false"
+tags:
+  - main
+steps:
+  - name: gcr.io/${PROJECT_ID}/platform-installer
+    id: "prod-gcp-services-apply"
+    dir: environments/prod/gcp/services
+    entrypoint: "bash"
+    args:
+      - "-xe"
+      - "-c"
+      - |
+        [[ "${_BUILD}" == "false" ]] && exit 0
+        terraform init
+        terraform plan -out terraform.tfplan
+        terraform apply -input=false -lock=false terraform.tfplan
+  - name: gcr.io/${PROJECT_ID}/platform-installer
+    id: "prod-gcp-vpc-apply"
+    dir: environments/prod/gcp/vpc
+    entrypoint: "bash"
+    args:
+      - "-xe"
+      - "-c"
+      - |
+        [[ "${_BUILD}" == "false" ]] && exit 0
+        terraform init
+        terraform plan -out terraform.tfplan
+        terraform apply -input=false -lock=false terraform.tfplan
+  - name: gcr.io/${PROJECT_ID}/platform-installer
+    id: "prod-gcp-gke-apply"
+    dir: environments/prod/gcp/gke
+    entrypoint: "bash"
+    args:
+      - "-xe"
+      - "-c"
+      - |
+        [[ "${_BUILD}" == "false" ]] && exit 0
+        terraform init
+        terraform plan -out terraform.tfplan
+        terraform apply -input=false -lock=false terraform.tfplan
+  - name: gcr.io/${PROJECT_ID}/platform-installer
+    id: "prod-gcp-asm-apply"
+    dir: environments/prod/gcp/asm
+    entrypoint: "bash"
+    args:
+      - "-xe"
+      - "-c"
+      - |
+        [[ "${_BUILD}" == "false" ]] && exit 0
+        terraform init
+        terraform plan -out terraform.tfplan
+        terraform apply -input=false -lock=false terraform.tfplan

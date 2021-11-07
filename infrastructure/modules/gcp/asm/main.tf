@@ -1,0 +1,172 @@
+resource "google_gke_hub_membership" "membership" {
+  membership_id = var.cluster_name
+  endpoint {
+    gke_cluster {
+      resource_link = "//container.googleapis.com/${var.cluster_id}"
+    }
+  }
+  provider = google-beta
+}
+
+resource "null_resource" "exec_mesh" {
+  provisioner "local-exec" {
+    interpreter = ["bash", "-exc"]
+    command     = "${path.module}/scripts/mesh.sh"
+    environment = {
+      CLUSTER    = var.cluster_name
+      LOCATION   = var.location
+      PROJECT    = var.project_id
+      KUBECONFIG = "~/${var.cluster_name}-kubeconfig"
+    }
+  }
+  triggers = {
+    build_number = "${timestamp()}"
+    script_sha1  = sha1(file("${path.module}/scripts/mesh.sh")),
+  }
+  depends_on = [google_gke_hub_membership.membership]
+}
+
+resource "kubernetes_namespace" "ns-istio-system" {
+  metadata {
+    name = "istio-system"
+  }
+  depends_on = [null_resource.exec_mesh]
+}
+
+resource "kubernetes_namespace" "ns-asm-gateways" {
+  metadata {
+    labels = {
+      "istio.io/rev" = "asm-managed"
+    }
+    name = "asm-gateways"
+  }
+  depends_on = [null_resource.exec_mesh]
+}
+
+resource "kubernetes_manifest" "cpr-asm-managed" {
+  manifest = {
+    apiVersion = "mesh.cloud.google.com/v1alpha1"
+    kind       = "ControlPlaneRevision"
+
+    metadata = {
+      name      = "asm-managed"
+      namespace = kubernetes_namespace.ns-istio-system.metadata[0].name
+    }
+
+    spec = {
+      type    = "managed_service"
+      channel = "regular"
+    }
+  }
+  wait_for = {
+    fields = {
+      "status.conditions[1].type" = "ProvisioningFinished"
+    }
+  }
+}
+
+resource "kubernetes_service_account" "ksa-istio-reader-sa" {
+  metadata {
+    name      = "istio-reader-sa"
+    namespace = kubernetes_namespace.ns-istio-system.metadata[0].name
+  }
+}
+
+resource "kubernetes_cluster_role" "clusterole-istio-reader-sa-clusterrole" {
+  metadata {
+    name = "istio-reader-sa-clusterrole"
+    labels = {
+      "app"     = "istio-reader"
+      "release" = "istio"
+    }
+  }
+  rule {
+    api_groups = ["config.istio.io", "security.istio.io", "networking.istio.io", "authentication.istio.io", "apiextensions.k8s.io"]
+    resources  = ["*"]
+    verbs      = ["get", "list", "watch"]
+  }
+  rule {
+    api_groups = [""]
+    resources  = ["endpoints", "pods", "services", "nodes", "replicationcontrollers", "namespaces", "secrets"]
+    verbs      = ["get", "list", "watch"]
+  }
+  rule {
+    api_groups = ["discovery.k8s.io"]
+    resources  = ["endpointslices"]
+    verbs      = ["get", "list", "watch"]
+  }
+  rule {
+    api_groups = ["apps"]
+    resources  = ["replicasets"]
+    verbs      = ["get", "list", "watch"]
+  }
+  rule {
+    api_groups = ["authentication.k8s.io"]
+    resources  = ["tokenreviews"]
+    verbs      = ["create"]
+  }
+  rule {
+    api_groups = ["authorization.k8s.io"]
+    resources  = ["subjectaccessreviews"]
+    verbs      = ["create"]
+  }
+}
+
+resource "kubernetes_cluster_role_binding" "clusterolebinding-istio-reader-sa-clusterrolebinding" {
+  metadata {
+    name = "istio-reader-sa-clusterrolebinding"
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = kubernetes_cluster_role.clusterole-istio-reader-sa-clusterrole.metadata[0].name
+  }
+  subject {
+    kind      = "ServiceAccount"
+    name      = kubernetes_service_account.ksa-istio-reader-sa.metadata[0].name
+    namespace = kubernetes_service_account.ksa-istio-reader-sa.metadata[0].namespace
+  }
+}
+
+data "kubernetes_secret" "ksa-secret-istio-reader-sa" {
+  metadata {
+    name      = kubernetes_service_account.ksa-istio-reader-sa.default_secret_name
+    namespace = kubernetes_service_account.ksa-istio-reader-sa.metadata[0].namespace
+  }
+}
+
+
+locals {
+  cluster_ca_certificate = data.google_container_cluster.gke_cluster.master_auth != null ? data.google_container_cluster.gke_cluster.master_auth[0].cluster_ca_certificate : ""
+  private_endpoint       = try(data.google_container_cluster.gke_cluster.private_cluster_config[0].private_endpoint, "")
+  default_endpoint       = data.google_container_cluster.gke_cluster.endpoint != null ? data.google_container_cluster.gke_cluster.endpoint : ""
+  endpoint               = var.use_private_endpoint == true ? local.private_endpoint : local.default_endpoint
+  host                   = local.endpoint != "" ? "https://${local.endpoint}" : ""
+  context                = data.google_container_cluster.gke_cluster.name != null ? data.google_container_cluster.gke_cluster.name : ""
+  token                  = lookup(data.kubernetes_secret.ksa-secret-istio-reader-sa.data, "token")
+}
+
+data "google_container_cluster" "gke_cluster" {
+  name     = var.cluster_name
+  location = var.location
+  project  = var.project_id
+}
+
+data "template_file" "kubeconfig" {
+  template = file("${path.module}/templates/kubeconfig-template.yaml.tpl")
+
+  vars = {
+    context                = local.context
+    cluster_ca_certificate = local.cluster_ca_certificate
+    endpoint               = local.endpoint
+    token                  = local.token
+  }
+}
+
+data "template_file" "kubeconfig-secret" {
+  template = file("${path.module}/templates/kubeconfig-secret-template.yaml.tpl")
+  vars = {
+    cluster    = var.cluster_name
+    kubeconfig = base64encode(data.template_file.kubeconfig.rendered)
+  }
+}

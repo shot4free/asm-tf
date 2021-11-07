@@ -1,0 +1,74 @@
+timeout: 3600s
+substitutions:
+  _PROJECT: "true"
+  _REPO: "infrastructure"
+  _BUILD_TRIGGER: "push-to-main"
+  # _ENVS: "prod stage dev"
+  # _CLOUDS: "gcp"
+tags:
+  - main
+steps:
+  - name: "gcr.io/kaniko-project/executor:v1.6.0"
+    id: "build-installer-image"
+    args:
+      - --destination=gcr.io/${PROJECT_ID}/platform-installer
+      - --cache=true
+      - --cache-ttl=12h
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: "create-gcs-backend-bucket"
+    entrypoint: bash
+    waitFor: ["-"]
+    args:
+      - -c
+      - |
+        [[ "${_PROJECT}" == "false" ]] && exit 0
+        ([[ $(gsutil ls | grep "gs://${PROJECT_ID}/") ]] || \
+          gsutil mb -p ${PROJECT_ID} gs://${PROJECT_ID}) && \
+        ([[ $(gsutil versioning get gs://${PROJECT_ID} | grep Enabled) ]] || \
+          gsutil versioning set on gs://${PROJECT_ID})
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: "create-csr-repo"
+    entrypoint: bash
+    waitFor: ["-"]
+    args:
+      - -c
+      - |
+        [[ "${_PROJECT}" == "false" ]] && exit 0
+        ([[ $(gcloud source repos list | grep "${_REPO}") ]] || \
+          gcloud source repos create "${_REPO}")
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: "create-build-trigger"
+    entrypoint: bash
+    waitFor: ["create-csr-repo"]
+    args:
+      - -c
+      - |
+        [[ "${_PROJECT}" == "false" ]] && exit 0
+        ([[ $(gcloud beta builds triggers list | grep "${_BUILD_TRIGGER}") ]] || \
+          gcloud beta builds triggers create cloud-source-repositories \
+          --repo="${_REPO}" --description="${_BUILD_TRIGGER}" --branch-pattern='main' \
+          --build-config='builds/cloudbuild.yaml')
+  - name: "gcr.io/${PROJECT_ID}/platform-installer"
+    id: "prep-and-push-repo"
+    entrypoint: bash
+    waitFor:
+      ["build-installer-image", "create-csr-repo", "create-build-trigger"]
+    args:
+      - -c
+      - |
+        [[ "${_PROJECT}" == "false" ]] && exit 0
+        gcloud source repos clone "${_REPO}" "${_REPO}"-repo --project="${PROJECT_ID}"
+        cd "${_REPO}"-repo
+        git config --global user.email "tf@infra.com"
+        git config --global user.name "tf"
+        git config pull.rebase true
+        git config credential.helper gcloud.sh
+        [[ $(git branch -a) ]] || git checkout -b main
+        [[ $(git branch -a | grep origin/main) = "  remotes/origin/main" ]] && git checkout main
+        cp -r ../infrastructure/. ../"${_REPO}"-repo/.
+        sed -i s/GOOGLE_PROJECT_ID/${PROJECT_ID}/ scripts/main.sh
+        ./scripts/main.sh
+        git add .
+        git commit -am "initial commit"
+        git pull origin main
+        git push origin main
