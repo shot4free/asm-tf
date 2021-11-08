@@ -1,36 +1,7 @@
-resource "google_gke_hub_membership" "membership" {
-  membership_id = var.cluster_name
-  endpoint {
-    gke_cluster {
-      resource_link = "//container.googleapis.com/${var.cluster_id}"
-    }
-  }
-  provider = google-beta
-}
-
-resource "null_resource" "exec_mesh" {
-  provisioner "local-exec" {
-    interpreter = ["bash", "-exc"]
-    command     = "${path.module}/scripts/mesh.sh"
-    environment = {
-      CLUSTER    = var.cluster_name
-      LOCATION   = var.location
-      PROJECT    = var.project_id
-      KUBECONFIG = "~/${var.cluster_name}-kubeconfig"
-    }
-  }
-  triggers = {
-    build_number = "${timestamp()}"
-    script_sha1  = sha1(file("${path.module}/scripts/mesh.sh")),
-  }
-  depends_on = [google_gke_hub_membership.membership]
-}
-
 resource "kubernetes_namespace" "ns-istio-system" {
   metadata {
     name = "istio-system"
   }
-  depends_on = [null_resource.exec_mesh]
 }
 
 resource "kubernetes_namespace" "ns-asm-gateways" {
@@ -40,7 +11,6 @@ resource "kubernetes_namespace" "ns-asm-gateways" {
     }
     name = "asm-gateways"
   }
-  depends_on = [null_resource.exec_mesh]
 }
 
 resource "kubernetes_manifest" "cpr-asm-managed" {
@@ -62,6 +32,97 @@ resource "kubernetes_manifest" "cpr-asm-managed" {
     fields = {
       "status.conditions[1].type" = "ProvisioningFinished"
     }
+  }
+}
+
+resource "kubernetes_service" "asm_ingressgateway" {
+  metadata {
+    name      = "asm-ingressgateway"
+    namespace = kubernetes_namespace.ns-asm-gateways.metadata[0].name
+  }
+
+  spec {
+    port {
+      name = "http"
+      port = 80
+    }
+
+    port {
+      name = "https"
+      port = 443
+    }
+
+    selector = {
+      asm = "ingressgateway"
+    }
+    type = "ClusterIP"
+  }
+  depends_on = [kubernetes_manifest.cpr-asm-managed]
+}
+
+resource "kubernetes_deployment" "asm_ingressgateway" {
+  metadata {
+    name      = "asm-ingressgateway"
+    namespace = kubernetes_namespace.ns-asm-gateways.metadata[0].name
+  }
+
+  spec {
+    selector {
+      match_labels = {
+        asm = "ingressgateway"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          asm = "ingressgateway"
+        }
+
+        annotations = {
+          "inject.istio.io/templates" = "gateway"
+        }
+      }
+
+      spec {
+        container {
+          name  = "istio-proxy"
+          image = "auto"
+        }
+      }
+    }
+  }
+  depends_on = [kubernetes_manifest.cpr-asm-managed]
+}
+
+resource "kubernetes_role" "asm_ingressgateway_sds" {
+  metadata {
+    name      = "asm-ingressgateway-sds"
+    namespace = kubernetes_namespace.ns-asm-gateways.metadata[0].name
+  }
+
+  rule {
+    verbs      = ["get", "watch", "list"]
+    api_groups = [""]
+    resources  = ["secrets"]
+  }
+}
+
+resource "kubernetes_role_binding" "asm_ingressgateway_sds" {
+  metadata {
+    name      = "asm-ingressgateway-sds"
+    namespace = kubernetes_namespace.ns-asm-gateways.metadata[0].name
+  }
+
+  subject {
+    kind = "ServiceAccount"
+    name = "default"
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "Role"
+    name      = kubernetes_role.asm_ingressgateway_sds.metadata[0].name
   }
 }
 

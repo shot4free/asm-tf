@@ -13,7 +13,6 @@
 # }
 
 variable "cluster_name" {}
-variable "cluster_id" {}
 variable "project_id" {}
 variable "location" {}
 variable "use_private_endpoint" {

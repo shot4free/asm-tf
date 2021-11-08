@@ -7,7 +7,7 @@ output "kubeconfig_raw" {
 
 output "kubeconfig_secret_raw" {
   sensitive   = true
-  description = "A kubeconfig file configured to access the GKE cluster."
+  description = "A kubeconfig file secret configured to access the GKE cluster."
   value       = data.template_file.kubeconfig-secret.rendered
 }
 

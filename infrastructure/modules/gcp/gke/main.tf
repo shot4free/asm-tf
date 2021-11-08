@@ -102,33 +102,33 @@ resource "local_file" "gke-us-west2-0-kubeconfig" {
   filename = var.kubeconfig.gke-us-west2-0-kubeconfig
 }
 
-# resource "google_gke_hub_membership" "membership" {
-#   for_each      = { for cluster in local.gke_clusters : cluster.cluster_num => cluster }
-#   membership_id = each.key
-#   endpoint {
-#     gke_cluster {
-#       resource_link = "//container.googleapis.com/${module.gke[each.key].cluster_id}"
-#     }
-#   }
-#   provider   = google-beta
-#   depends_on = [module.gke]
-# }
+resource "google_gke_hub_membership" "membership" {
+  for_each      = { for cluster in local.gke_clusters : cluster.cluster_num => cluster }
+  membership_id = each.key
+  endpoint {
+    gke_cluster {
+      resource_link = "//container.googleapis.com/${module.gke[each.key].cluster_id}"
+    }
+  }
+  provider   = google-beta
+  depends_on = [module.gke]
+}
 
-# resource "null_resource" "exec_mesh" {
-#   for_each = { for cluster in local.gke_clusters : cluster.cluster_num => cluster }
-#   provisioner "local-exec" {
-#     interpreter = ["bash", "-exc"]
-#     command     = "${path.module}/scripts/mesh.sh"
-#     environment = {
-#       CLUSTER    = module.gke[each.key].name
-#       LOCATION   = module.gke[each.key].location
-#       PROJECT    = var.project_id
-#       KUBECONFIG = "~/${module.gke[each.key].name}-kubeconfig"
-#     }
-#   }
-#   triggers = {
-#     build_number = "${timestamp()}"
-#     script_sha1  = sha1(file("${path.module}/scripts/mesh.sh")),
-#   }
-#   depends_on = [module.gke]
-# }
+resource "null_resource" "exec_mesh" {
+  for_each = { for cluster in local.gke_clusters : cluster.cluster_num => cluster }
+  provisioner "local-exec" {
+    interpreter = ["bash", "-exc"]
+    command     = "${path.module}/scripts/mesh.sh"
+    environment = {
+      CLUSTER    = module.gke[each.key].name
+      LOCATION   = module.gke[each.key].location
+      PROJECT    = var.project_id
+      KUBECONFIG = "~/${module.gke[each.key].name}-kubeconfig"
+    }
+  }
+  triggers = {
+    build_number = "${timestamp()}"
+    script_sha1  = sha1(file("${path.module}/scripts/mesh.sh")),
+  }
+  depends_on = [module.gke]
+}
