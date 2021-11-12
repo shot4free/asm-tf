@@ -160,8 +160,8 @@
     kind: Namespace
     metadata:
       name: online-boutique
-    labels:
-      istio.io/rev: ${ASM_LABEL}
+      labels:
+        istio.io/rev: ${ASM_LABEL}
     EOF
 
     kubectl --context=${GKE1_CTX} apply -f ${WORKDIR}/namespace-online-boutique.yaml
@@ -201,20 +201,18 @@
     kubectl --context=${GKE2_CTX} -n online-boutique apply -f ${WORKDIR}/asm-terraform/tutorial/online-boutique/asm-manifests.yaml
     ```
 
-1.  Access Online Boutique via the ASM ingress.
+1.  Access Online Boutique via the ASM ingress. Verify mutlicluster mesh service discovery and routing by accessing the Online Boutique application through the ASM ingress gateway.
 
     ```bash
+    export GKE1_ASM_INGRESS_IP=$(kubectl --context=${GKE1_CTX} --namespace ${ASM_GATEWAYS_NAMESPACE} get svc asm-ingressgateway -o jsonpath={.status.loadBalancer.ingress..ip})
+    export GKE2_ASM_INGRESS_IP=$(kubectl --context=${GKE2_CTX} --namespace ${ASM_GATEWAYS_NAMESPACE} get svc asm-ingressgateway -o jsonpath={.status.loadBalancer.ingress..ip})
 
+    echo -e "GKE1 ASM Ingressgateway IP is ${GKE1_ASM_INGRESS_IP}"
+    echo -e "GKE2 ASM Ingressgateway IP is ${GKE2_ASM_INGRESS_IP}"
     ```
 
-1.  Verify mutlicluster mesh service discovery and routing by accessing the Online Boutique application through the ASM ingress gateway.
+1.  Inspect Service dashboards by accessing the link below.
 
     ```bash
-
+    echo -e "https://console.cloud.google.com/anthos/services?project=${PROJECT_ID}"
     ```
-
-1.  Inspect Service dashboards.
-
-```
-
-```

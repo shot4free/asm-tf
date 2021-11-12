@@ -106,6 +106,7 @@ module "gke1_auth" {
   project_id   = var.project_id
   cluster_name = module.gke1.name
   location     = module.gke1.location
+  depends_on   = [module.gke1]
 }
 
 module "gke2_auth" {
@@ -113,6 +114,7 @@ module "gke2_auth" {
   project_id   = var.project_id
   cluster_name = module.gke2.name
   location     = module.gke2.location
+  depends_on   = [module.gke2]
 }
 
 resource "local_file" "gke1_kubeconfig" {
