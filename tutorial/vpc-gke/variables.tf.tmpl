@@ -1,0 +1,69 @@
+variable "project_id" {
+  type    = string
+  default = "$PROJECT_ID"
+}
+
+variable "vpc" {
+  type    = string
+  default = "$VPC"
+}
+
+variable "region" {
+  type    = string
+  default = "$REGION"
+}
+
+variable "subnet_name" {
+  type    = string
+  default = "subnet-01"
+}
+
+variable "subnet_ip" {
+  type    = string
+  default = "10.0.0.0/20"
+}
+
+variable "pod_cidr" {
+  type    = string
+  default = "10.10.0.0/20"
+}
+
+variable "svc1_cidr" {
+  type    = string
+  default = "10.100.0.0/24"
+}
+
+variable "svc2_cidr" {
+  type    = string
+  default = "10.100.1.0/24"
+}
+
+variable "gke1" {
+  type    = string
+  default = "$GKE1"
+}
+
+variable "gke2" {
+  type    = string
+  default = "$GKE2"
+}
+
+variable "gke1_location" {
+  type    = string
+  default = "$GKE1_LOCATION"
+}
+
+variable "gke2_location" {
+  type    = string
+  default = "$GKE2_LOCATION"
+}
+
+variable "gke1_kubeconfig" {
+  type    = string
+  default = "$GKE1_KUBECONFIG"
+}
+
+variable "gke2_kubeconfig" {
+  type    = string
+  default = "$GKE2_KUBECONFIG"
+}

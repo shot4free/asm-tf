@@ -1,0 +1,34 @@
+variable "project_id" {
+    type = string
+    default = "$PROJECT_ID"
+}
+
+variable "gke1" {
+    type = string
+    default = "$GKE1"
+}
+
+variable "gke2" {
+    type = string
+    default = "$GKE2"
+}
+
+variable "gke1_location" {
+  type    = string
+  default = "$GKE1_LOCATION"
+}
+
+variable "gke2_location" {
+  type    = string
+  default = "$GKE2_LOCATION"
+}
+
+variable "gke1_kubeconfig_path" {
+    type = string
+    default = "./gke1_kubeconfig"
+}
+
+variable "gke2_kubeconfig_path" {
+    type = string
+    default = "./gke2_kubeconfig"
+}
