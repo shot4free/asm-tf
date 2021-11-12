@@ -201,7 +201,7 @@
     kubectl --context=${GKE2_CTX} -n online-boutique apply -f ${WORKDIR}/asm-terraform/tutorial/online-boutique/asm-manifests.yaml
     ```
 
-1.  Access Online Boutique via the ASM ingress. Verify mutlicluster mesh service discovery and routing by accessing the Online Boutique application through the ASM ingress gateway.
+1.  Access Online Boutique via the ASM ingress. Verify mutlicluster mesh service discovery and routing by accessing the Online Boutique application through the ASM ingress gateway. You can access the application through either IP address.
 
     ```bash
     export GKE1_ASM_INGRESS_IP=$(kubectl --context=${GKE1_CTX} --namespace ${ASM_GATEWAYS_NAMESPACE} get svc asm-ingressgateway -o jsonpath={.status.loadBalancer.ingress..ip})
