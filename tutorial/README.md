@@ -51,8 +51,10 @@
 1.  Clone the repo.
 
     ```bash
-    git clone "${REPO_URL}" asm-terraform
-    cd asm-terraform/tutorial
+    git clone "${REPO_URL}" ${WORKDIR}/asm-terraform
+    cd ${WORKDIR}/asm-terraform
+    git checkout aa/tutorial
+    cd tutorial
     ```
 
 1.  Prepare VPC and GKE terraform module.
