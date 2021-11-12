@@ -25,12 +25,15 @@ variable "gke2_location" {
 
 variable "gke1_kubeconfig" {
     type = string
-    # default = "$GKE1_KUBECONFIG"
-    default = "../vpc-gke/gke1_kubeconfig"
+    default = "$GKE1_KUBECONFIG"
 }
 
 variable "gke2_kubeconfig" {
     type = string
-    # default = "$GKE2_KUBECONFIG"
-    default = "../vpc-gke/gke2_kubeconfig"
+    default = "$GKE2_KUBECONFIG"
+}
+
+variable "asm_channel" {
+  type = string
+  default = "$ASM_CHANNEL"
 }

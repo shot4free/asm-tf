@@ -18,11 +18,16 @@
     export VPC="vpc"
     export GKE1="gke1"
     export GKE2="gke2"
+    export GKE1_CTX=gke_${PROJECT_ID}_${GKE1_LOCATION}_${GKE1}
+    export GKE2_CTX=gke_${PROJECT_ID}_${GKE2_LOCATION}_${GKE2}
     export REGION="us-central1"
     export GKE1_LOCATION="${REGION}-a"
     export GKE2_LOCATION="${REGION}-b"
     export GKE1_KUBECONFIG="${WORKDIR}/gke1_kubeconfig"
     export GKE2_KUBECONFIG="${WORKDIR}/gke2_kubeconfig"
+    export ASM_CHANNEL="regular"
+    export ASM_LABEL="asm-managed" # Refers to the REGULAR ASM channel
+    export ASM_GATEWAYS_NAMESPACE="asm-gateways"
     ```
 
 1.  Enabled required services.
@@ -47,7 +52,7 @@
 
     ```bash
     git clone "${REPO_URL}" asm-terraform
-    cd asm-terraform
+    cd asm-terraform/tutorial
     ```
 
 1.  Prepare VPC and GKE terraform module.
@@ -94,7 +99,7 @@
     customresourcedefinition.apiextensions.k8s.io/controlplanerevisions.mesh.cloud.google.com condition met
     ```
 
-1.  Install ASM on the GKE clusters.
+1.  Install ASM on the GKE clusters. This module also configures multi-cluster mesh by configuring cross-cluster kubeconfig secrets.
 
     ```bash
     cd ../asm
@@ -106,22 +111,108 @@
     terraform apply --auto-approve
     ```
 
-1.  Configure multicluster mesh.
+1.  Ensure ASM provisioning finishes successfully.
+
+    ```bash
+    kubectl --context=${GKE1_CTX} wait --for=condition=ProvisioningFinished controlplanerevision asm-managed -n istio-system --timeout=10m
+    kubectl --context=${GKE2_CTX} wait --for=condition=ProvisioningFinished controlplanerevision asm-managed -n istio-system --timeout=10m
+    ```
+
+    Output is similar to the following:
+
+    ```
+    controlplanerevision.mesh.cloud.google.com/asm-managed condition met
+    ```
+
+1.  Deploy ASM ingress gateways in both clusters.
+
+    ```bash
+    cd ../asm-gateways
+    envsubst < variables.tf.tmpl > variables.tf
+    envsubst < provider.tf.tmpl > provider.tf
+
+    terraform init
+    terraform plan
+    terraform apply --auto-approve
+    ```
+
+1.  Confirm both ASM ingress gateways are Running.
+
+    ```bash
+    kubectl --context=${GKE1_CTX} -n ${ASM_GATEWAYS_NAMESPACE} wait --for=condition=available --timeout=5m deployment asm-ingressgateway
+    kubectl --context=${GKE2_CTX} -n ${ASM_GATEWAYS_NAMESPACE} wait --for=condition=available --timeout=5m deployment asm-ingressgateway
+    ```
+
+    Output is similar to the following:
+
+    ```
+    deployment.apps/asm-ingressgateway condition met
+    ```
+
+1.  Deploy a sample application on both clusters. Create some deploymends on `gke1` cluster and others on `gke2` cluster to verify multi-cluster mesh.
+
+    ```bash
+    cat <<EOF > ${WORKDIR}/namespace-online-boutique.yaml
+
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: online-boutique
+    labels:
+      istio.io/rev: ${ASM_LABEL}
+    EOF
+
+    kubectl --context=${GKE1_CTX} apply -f ${WORKDIR}/namespace-online-boutique.yaml
+    kubectl --context=${GKE2_CTX} apply -f ${WORKDIR}/namespace-online-boutique.yaml
+
+    git clone https://github.com/GoogleCloudPlatform/microservices-demo.git ${WORKDIR}/online-boutique
+    kubectl --context=${GKE1_CTX} -n online-boutique apply -f ${WORKDIR}/online-boutique/release/kubernetes-manifests.yaml
+    kubectl --context=${GKE2_CTX} -n online-boutique apply -f ${WORKDIR}/online-boutique/release/kubernetes-manifests.yaml
+
+    kubectl --context=${GKE1_CTX} -n online-boutique delete deployment adservice
+    kubectl --context=${GKE1_CTX} -n online-boutique delete deployment cartservice
+    kubectl --context=${GKE1_CTX} -n online-boutique delete deployment redis-cart
+    kubectl --context=${GKE1_CTX} -n online-boutique delete deployment currencyservice
+    kubectl --context=${GKE1_CTX} -n online-boutique delete deployment emailservice
+
+    kubectl --context=${GKE2_CTX} -n online-boutique delete deployment paymentservice
+    kubectl --context=${GKE2_CTX} -n online-boutique delete deployment productcatalogservice
+    kubectl --context=${GKE2_CTX} -n online-boutique delete deployment shippingservice
+    kubectl --context=${GKE2_CTX} -n online-boutique delete deployment checkoutservice
+    kubectl --context=${GKE2_CTX} -n online-boutique delete deployment recommendationservice
+
+    kubectl --context=${GKE1_CTX} -n online-boutique wait --for=condition=available --timeout=5m deployment frontend
+    kubectl --context=${GKE1_CTX} -n online-boutique wait --for=condition=available --timeout=5m deployment paymentservice
+    kubectl --context=${GKE1_CTX} -n online-boutique wait --for=condition=available --timeout=5m deployment productcatalogservice
+    kubectl --context=${GKE1_CTX} -n online-boutique wait --for=condition=available --timeout=5m deployment shippingservice
+    kubectl --context=${GKE1_CTX} -n online-boutique wait --for=condition=available --timeout=5m deployment recommendationservice
+    kubectl --context=${GKE1_CTX} -n online-boutique wait --for=condition=available --timeout=5m deployment checkoutservice
+
+    kubectl --context=${GKE2_CTX} -n online-boutique wait --for=condition=available --timeout=5m deployment frontend
+    kubectl --context=${GKE2_CTX} -n online-boutique wait --for=condition=available --timeout=5m deployment adservice
+    kubectl --context=${GKE2_CTX} -n online-boutique wait --for=condition=available --timeout=5m deployment cartservice
+    kubectl --context=${GKE2_CTX} -n online-boutique wait --for=condition=available --timeout=5m deployment currencyservice
+    kubectl --context=${GKE2_CTX} -n online-boutique wait --for=condition=available --timeout=5m deployment emailservice
+    kubectl --context=${GKE2_CTX} -n online-boutique wait --for=condition=available --timeout=5m deployment redis-cart
+
+    kubectl --context=${GKE1_CTX} -n online-boutique apply -f ${WORKDIR}/asm-terraform/tutorial/online-boutique/asm-manifests.yaml
+    kubectl --context=${GKE2_CTX} -n online-boutique apply -f ${WORKDIR}/asm-terraform/tutorial/online-boutique/asm-manifests.yaml
+    ```
+
+1.  Access Online Boutique via the ASM ingress.
 
     ```bash
 
     ```
 
-1.  Deploy a sample application on the GKE cluster.
-
-    ```bash
-
-    ```
-
-1.  Verify mutlicluster mesh service discovery and routing.
+1.  Verify mutlicluster mesh service discovery and routing by accessing the Online Boutique application through the ASM ingress gateway.
 
     ```bash
 
     ```
 
 1.  Inspect Service dashboards.
+
+```
+
+```

@@ -24,15 +24,6 @@ resource "kubernetes_namespace" "ns-istio-system" {
   }
 }
 
-resource "kubernetes_namespace" "ns-asm-gateways" {
-  metadata {
-    labels = {
-      "istio.io/rev" = "asm-managed"
-    }
-    name = "asm-gateways"
-  }
-}
-
 resource "kubernetes_manifest" "cpr-asm-managed" {
   manifest = {
     apiVersion = "mesh.cloud.google.com/v1alpha1"
@@ -45,7 +36,7 @@ resource "kubernetes_manifest" "cpr-asm-managed" {
 
     spec = {
       type    = "managed_service"
-      channel = "regular"
+      channel = "${var.asm_channel}"
     }
   }
   wait_for = {
@@ -54,98 +45,6 @@ resource "kubernetes_manifest" "cpr-asm-managed" {
     }
   }
 }
-
-resource "kubernetes_service" "asm_ingressgateway" {
-  metadata {
-    name      = "asm-ingressgateway"
-    namespace = kubernetes_namespace.ns-asm-gateways.metadata[0].name
-  }
-
-  spec {
-    port {
-      name = "http"
-      port = 80
-    }
-
-    port {
-      name = "https"
-      port = 443
-    }
-
-    selector = {
-      asm = "ingressgateway"
-    }
-    type = "ClusterIP"
-  }
-  depends_on = [kubernetes_manifest.cpr-asm-managed]
-}
-
-resource "kubernetes_deployment" "asm_ingressgateway" {
-  metadata {
-    name      = "asm-ingressgateway"
-    namespace = kubernetes_namespace.ns-asm-gateways.metadata[0].name
-  }
-
-  spec {
-    selector {
-      match_labels = {
-        asm = "ingressgateway"
-      }
-    }
-
-    template {
-      metadata {
-        labels = {
-          asm = "ingressgateway"
-        }
-
-        annotations = {
-          "inject.istio.io/templates" = "gateway"
-        }
-      }
-
-      spec {
-        container {
-          name  = "istio-proxy"
-          image = "auto"
-        }
-      }
-    }
-  }
-  depends_on = [kubernetes_manifest.cpr-asm-managed]
-}
-
-resource "kubernetes_role" "asm_ingressgateway_sds" {
-  metadata {
-    name      = "asm-ingressgateway-sds"
-    namespace = kubernetes_namespace.ns-asm-gateways.metadata[0].name
-  }
-
-  rule {
-    verbs      = ["get", "watch", "list"]
-    api_groups = [""]
-    resources  = ["secrets"]
-  }
-}
-
-resource "kubernetes_role_binding" "asm_ingressgateway_sds" {
-  metadata {
-    name      = "asm-ingressgateway-sds"
-    namespace = kubernetes_namespace.ns-asm-gateways.metadata[0].name
-  }
-
-  subject {
-    kind = "ServiceAccount"
-    name = "default"
-  }
-
-  role_ref {
-    api_group = "rbac.authorization.k8s.io"
-    kind      = "Role"
-    name      = kubernetes_role.asm_ingressgateway_sds.metadata[0].name
-  }
-}
-
 resource "kubernetes_service_account" "ksa-istio-reader-sa" {
   metadata {
     name      = "istio-reader-sa"

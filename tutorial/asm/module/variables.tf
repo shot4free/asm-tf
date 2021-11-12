@@ -15,3 +15,7 @@ variable "use_private_endpoint" {
   type        = bool
   default     = false
 }
+
+variable "asm_channel" {
+  type = string
+}

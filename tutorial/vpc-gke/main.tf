@@ -80,7 +80,7 @@ module "gke2" {
   name                      = var.gke2
   regional                  = false
   region                    = var.region
-  zones                     = [var.gke1_location]
+  zones                     = [var.gke2_location]
   network                   = module.vpc.network_name
   subnetwork                = var.subnet_name
   ip_range_pods             = "${var.subnet_name}-pod-cidr"
