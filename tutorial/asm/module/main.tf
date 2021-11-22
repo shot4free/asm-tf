@@ -26,12 +26,16 @@ resource "kubernetes_namespace" "ns-istio-system" {
 
 resource "kubernetes_manifest" "cpr-asm-managed" {
   manifest = {
-    apiVersion = "mesh.cloud.google.com/v1alpha1"
+    apiVersion = "mesh.cloud.google.com/v1beta1"
     kind       = "ControlPlaneRevision"
 
     metadata = {
       name      = "asm-managed"
       namespace = kubernetes_namespace.ns-istio-system.metadata[0].name
+      labels = {
+      "app.kubernetes.io/created-by" = "terraform"
+      }
+
     }
 
     spec = {
