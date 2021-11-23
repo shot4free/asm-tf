@@ -25,6 +25,7 @@
     export GKE2_LOCATION="${REGION}-b"
     export GKE1_KUBECONFIG="${WORKDIR}/gke1_kubeconfig"
     export GKE2_KUBECONFIG="${WORKDIR}/gke2_kubeconfig"
+    export GKE_CHANNEL="REGULAR"
     export ASM_CHANNEL="regular"
     export ASM_LABEL="asm-managed" # Refers to the REGULAR ASM channel
     export ASM_GATEWAYS_NAMESPACE="asm-gateways"
