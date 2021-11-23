@@ -60,12 +60,13 @@ module "gke1" {
   ip_range_services         = "${var.subnet_name}-svc1-cidr"
   default_max_pods_per_node = 64
   network_policy            = true
+  release_channel           = "${var.gke_channel}"
   cluster_resource_labels   = { "mesh_id" : "proj-${data.google_project.project.number}" }
   node_pools = [
     {
       name         = "node-pool-01"
       autoscaling  = true
-      auto_upgrade = false
+      auto_upgrade = true
       min_count    = 1
       max_count    = 5
       node_count   = 2
@@ -87,12 +88,13 @@ module "gke2" {
   ip_range_services         = "${var.subnet_name}-svc2-cidr"
   default_max_pods_per_node = 64
   network_policy            = true
+  release_channel           = "${var.gke_channel}"
   cluster_resource_labels   = { "mesh_id" : "proj-${data.google_project.project.number}" }
   node_pools = [
     {
       name         = "node-pool-01"
       autoscaling  = true
-      auto_upgrade = false
+      auto_upgrade = true
       min_count    = 1
       max_count    = 5
       node_count   = 2
