@@ -27,7 +27,7 @@
     export GKE2_KUBECONFIG="${WORKDIR}/gke2_kubeconfig"
     export GKE_CHANNEL="REGULAR"
     export ASM_CHANNEL="regular"
-    export ASM_LABEL="asm-managed" # Refers to the REGULAR ASM channel
+    export CNI_ENABLED="true"
     export ASM_GATEWAYS_NAMESPACE="asm-gateways"
     ```
 
@@ -112,6 +112,8 @@
     terraform init
     terraform plan
     terraform apply --auto-approve
+
+    export ASM_LABEL=$(terraform output asm_label | tr -d '"')
     ```
 
 1.  Ensure ASM provisioning finishes successfully.

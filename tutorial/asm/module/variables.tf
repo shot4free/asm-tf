@@ -18,8 +18,11 @@ variable "use_private_endpoint" {
 
 variable "asm_channel" {
   type = string
+  default = "stable"
 }
 
-variable "asm_label" {
-  type = string
+variable "cni_enabled" {
+  description = "Needs to be true to run on GKE Autopilot clusters."
+  type = bool
+  default = true
 }
