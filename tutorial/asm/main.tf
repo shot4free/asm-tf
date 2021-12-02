@@ -24,6 +24,7 @@ module "asm-gke1" {
   }
   project_id   = var.project_id
   asm_channel  = var.asm_channel
+  asm_label    = var.asm_label
   cluster_name = data.google_container_cluster.gke1.name
   location     = data.google_container_cluster.gke1.location
 }
@@ -35,6 +36,7 @@ module "asm-gke2" {
   }
   project_id   = var.project_id
   asm_channel  = var.asm_channel
+  asm_label    = var.asm_label
   cluster_name = data.google_container_cluster.gke2.name
   location     = data.google_container_cluster.gke2.location
 }
