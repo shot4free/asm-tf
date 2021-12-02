@@ -19,3 +19,7 @@ variable "use_private_endpoint" {
 variable "asm_channel" {
   type = string
 }
+
+variable "asm_label" {
+  type = string
+}

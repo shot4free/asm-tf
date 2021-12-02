@@ -117,8 +117,8 @@
 1.  Ensure ASM provisioning finishes successfully.
 
     ```bash
-    kubectl --context=${GKE1_CTX} wait --for=condition=ProvisioningFinished controlplanerevision asm-managed -n istio-system --timeout=10m
-    kubectl --context=${GKE2_CTX} wait --for=condition=ProvisioningFinished controlplanerevision asm-managed -n istio-system --timeout=10m
+    kubectl --context=${GKE1_CTX} wait --for=condition=ProvisioningFinished controlplanerevision ${ASM_LABEL} -n istio-system --timeout=10m
+    kubectl --context=${GKE2_CTX} wait --for=condition=ProvisioningFinished controlplanerevision ${ASM_LABEL} -n istio-system --timeout=10m
     ```
 
     Output is similar to the following:
