@@ -1,3 +1,7 @@
+locals {
+   asm_label = var.asm_channel == "stable" ? "asm-managed-stable" : var.asm_channel == "rapid" ? "asm-managed-rapid" : "asm-managed"
+}
+
 module "project-services" {
   source = "terraform-google-modules/project-factory/google//modules/project_services"
 
@@ -30,17 +34,18 @@ resource "kubernetes_manifest" "cpr-asm-revision" {
     kind       = "ControlPlaneRevision"
 
     metadata = {
-      name      = "${var.asm_label}"
+      name      = local.asm_label
       namespace = kubernetes_namespace.ns-istio-system.metadata[0].name
       labels = {
       "app.kubernetes.io/created-by" = "terraform"
+      "mesh.cloud.google.com/managed-cni-enabled" = var.cni_enabled
       }
 
     }
 
     spec = {
       type    = "managed_service"
-      channel = "${var.asm_channel}"
+      channel = var.asm_channel
     }
   }
   wait_for = {

@@ -10,7 +10,7 @@
     export WORKDIR=$(pwd)
     ```
 
-1.  Define variables.
+1.  Define variables used in this workshop. Replace the value of PROJECT_ID with your Project ID. The ASM_CHANNEL variable can be used to set up ASM with Regular, Rapid or Stable release channels. See Anthos Service Mesh control plane revisions for more details. Note, CNI_ENABLED is required to be true in order to support GKE Autopilot clusters.
 
     ```bash
     export PROJECT_ID=YOUR PROJECT ID
@@ -27,7 +27,7 @@
     export GKE2_KUBECONFIG="${WORKDIR}/gke2_kubeconfig"
     export GKE_CHANNEL="REGULAR"
     export ASM_CHANNEL="regular"
-    export ASM_LABEL="asm-managed" # Refers to the REGULAR ASM channel
+    export CNI_ENABLED="true"
     export ASM_GATEWAYS_NAMESPACE="asm-gateways"
     ```
 
@@ -112,6 +112,8 @@
     terraform init
     terraform plan
     terraform apply --auto-approve
+
+    export ASM_LABEL=$(terraform output asm_label | tr -d '"')
     ```
 
 1.  Ensure ASM provisioning finishes successfully.
