@@ -1,3 +1,7 @@
+locals {
+   asm_label = var.asm_channel == "stable" ? "asm-managed-stable" : var.asm_channel == "rapid" ? "asm-managed-rapid" : "asm-managed"
+}
+
 data "google_container_cluster" "gke1" {
   name     = var.gke1
   location = var.gke1_location
